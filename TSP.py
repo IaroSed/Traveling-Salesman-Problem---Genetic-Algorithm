@@ -7,7 +7,7 @@ Created on Fri May 31 14:39:00 2019
 
 import pygame
 import random
-import pandas as pd
+#import pandas as pd
 import heapq
 import numpy as np
 from math import sqrt
@@ -28,10 +28,13 @@ PROBA = 0.85
 
 Exit_RS = open("ResultsPath.txt", 'w',encoding='utf-8')
 
-#Office location as first element
-Coordinates = [[int(SCREEN_WIDTH/2),int(SCREEN_HEIGHT/2)]]
+#Office location
+Office = [[int(SCREEN_WIDTH/2),int(SCREEN_HEIGHT/2)]]
+
 
 # Adding coordinates to visit (x,y) 
+Coordinates = []
+
 for i in range(0,10):
     Coordinates.append([random.randint(0,SCREEN_WIDTH),random.randint(0,SCREEN_HEIGHT)])
 
@@ -43,6 +46,12 @@ for i in range(len(Coordinates)):
     for j in range(len(Coordinates)):
         Distances[i][j] = sqrt((Coordinates[i][0]-Coordinates[j][0])**2 + (Coordinates[i][1]-Coordinates[j][1])**2)
         
+# Initializing the distances to office matrix
+Distances_to_office = np.zeros((len(Coordinates),1))
+
+# Populating the distances to office matrix
+for i in range(len(Coordinates)):
+    Distances_to_office[i] = sqrt((Coordinates[i][0]-Office[0][0])**2 + (Coordinates[i][1]-Office[0][1])**2)
 
 
 ## Defining functions
@@ -51,49 +60,31 @@ def crossover(fitness,the_best_fitness, the_best_path):
     
 
     best_fitness_temp = [0] * 30
-    #print("1: " + str(best_classifiers[0].get_weights()[0][0]))
-    
-    #print(best_fitness)
-    #print(fitness)
-
     best_fitness_temp = best_fitness + fitness
-
-        
+  
     best_parents_int = []
     best_parents_int = heapq.nlargest(30, enumerate(best_fitness_temp), key=lambda x: x[1])
-    #print(best_parents_int)
     
-    print("The last best is: " + str(heapq.nlargest(1, enumerate(best_fitness_temp), key=lambda x: x[1])[0][1]) + " the best is: " + str(best_fitness[0]))
-    
-    
-    
+
     # Updating the Best path
     for i in range(0,10):
         Best_Path[i] = (Best_Path + Path)[best_parents_int[i][0]]
         best_fitness[i] = best_fitness_temp[best_parents_int[i][0]]
 
-    #Replacing the first 5 classifiers by the best and no mutation authorized
-    for i in range(0,5):
+
+    # Replacing the first 5 classifiers by the best and no mutation authorized
+    for i in range(0,10):
         Path[i] = Best_Path[i]
 
-    # Keeping some bad ones for diversity   
-    for i in range(5,10):
-        Path[i] = (Best_Path + Path)[best_parents_int[i+5][0]]
 
-    #Replacing the first 5 classifiers by the best and mutation authorized
-    for i in range(10,15):
-        Path[i] = Best_Path[i-10]
+    CO = [0] * 10
 
-    CO = [0] * 5
-    
-    for i in range(15,20):
-        #classifier[i].set_weights(best_classifiers[i-15].get_weights()) 
-        CO[i-16] = Best_Path[i-15][int(len(Coordinates)/2+1):]
- 
+    for i in range(10,20):
+        CO[i-11] = Best_Path[i-10][int(len(Coordinates)/2+1):]
 
-    for i in range(15,20):
-        Path[i] = [x for x in Path[i] if x not in CO[i-15]] + CO[i-15]
-        
+    for i in range(10,20):
+        Path[i] = [x for x in Path[i] if x not in CO[i-10]] + CO[i-10]
+
     
     
     if best_fitness[0] > the_best_fitness:
@@ -120,14 +111,9 @@ def mutate():
         for j in range(1,NUMBER_MODELS):
             if Path[i] == Path[j]:
                 swap_random(Path[j])
-    
-        
-        #for k in range(len(Coordinates)):
-        #if random.uniform(0,1) > PROBA:
-            #swap_random(Path[i])
 
 
-  
+
 
 ### Main    
     
@@ -195,6 +181,8 @@ while run:
     for j in range(len(Coordinates)):
         #Draw end of distance between pipes at which birds are aiming
         pygame.draw.circle(win, (255,0,0), (Coordinates[j][0], Coordinates[j][1]), 4)
+    
+    pygame.draw.circle(win, (0,0,255), (Office[0][0],Office[0][1]), 6)
         
     for i in range(NUMBER_MODELS):
         #pygame.time.delay(100)
@@ -205,11 +193,15 @@ while run:
         #pygame.draw.lines(win, (255,255,255), False, List_Coord ,2)
         
 
-        fitness.append(sum([Distances[Path[i][k]][Path[i][k+1]] for k in range(0,len(Coordinates)-1)]))
+        fitness.append(sum([Distances[Path[i][k]][Path[i][k+1]] for k in range(0,len(Coordinates)-1)]) + Distances_to_office[Path[i][0]][0] + Distances_to_office[Path[i][len(Path[i])-1]][0])
         
         
     List_Coord_best = [(Coordinates[the_best_path[k]][0],Coordinates[the_best_path[k]][1]) for k in range(0,len(Coordinates))]
     pygame.draw.lines(win, (34,139,34), False, List_Coord_best ,2)
+    
+    pygame.draw.line(win, (34,139,34), (Office[0][0],Office[0][1]), (Coordinates[the_best_path[0]][0],Coordinates[the_best_path[0]][1]), 2) 
+    pygame.draw.line(win, (34,139,34), (Coordinates[the_best_path[len(the_best_path)-1]][0],Coordinates[the_best_path[len(the_best_path)-1]][1]), (Office[0][0],Office[0][1]), 2) 
+    
     
     fitness = [round(1000000/fitness[i],2) for i in range(len(fitness))]    
     shortest_path = [b for b, j in enumerate(fitness) if j == max(fitness)][0]
